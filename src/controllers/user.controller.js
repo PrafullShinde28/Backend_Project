@@ -4,20 +4,28 @@ import {User} from "../models/user.model.js";
 import { uploadOnCloudinary } from "../utils/Cloudinary.js";
 import {ApiResponse} from "../utils/ApiResponse.js";
 
- const generateAccessAndRefreshToken = async(userId)=>{
-   try{
-      const user =  await User.findById(userId)
-     const accessToken= user.generateAccessToken()
-     const refreshToken= user.generateRefreshToken()
+const generateAccessAndRefreshToken = async (userId) => {
+  try {
+    console.log("Trying to generate tokens for userId:", userId);
 
-      user.refreshToken = refreshToken;
-      await user.save({ValidateBeforeSave : false})
-      return{accessToken,refreshToken}
+    const user = await User.findById(userId);
+    
+    if (!user) {
+      throw new ApiError(404, "User not found during token generation");
     }
-    catch(error){
-      throw new ApiError(500,"something went wrong while generating refresh and access token");
-    }
- }
+
+    const accessToken = user.generateAccessToken();
+    const refreshToken = user.generateRefreshToken();
+
+    user.refreshToken = refreshToken;
+    await user.save({ validateBeforeSave: false });
+
+    return { accessToken, refreshToken };
+  } catch (error) {
+    throw new ApiError(500, "Something went wrong while generating refresh and access token");
+  }
+};
+
 const registerUser = asyncHandler(async (req,res)=>{
       //get user detail from frontend
       //validation
@@ -114,15 +122,16 @@ const loginUser = asyncHandler(async (req,res)=>{
 
     //1->req body -> data
     const {email , username,password}= req.body
+    console.log(email);
 
     // 2->username or email
-    if(!username || !email){
+    if(!(username || email)){
       throw new ApiError(400,"username or email is required")
     }
 
     //3-> find the user
 
-    const user = await username.findOne({
+    const user = await User.findOne({
       $or : [{username},{email}]
     })
 
@@ -150,11 +159,14 @@ const loginUser = asyncHandler(async (req,res)=>{
     httpOnly : true,
     secure : true
    }
+
+   
+
    
    return res
    .status(200)
-   .cookie("accessToken",accessToken,options)
-   .cookie("refreshToken",refreshToken,options)
+   .cookie("accessToken",accessToken,option)
+   .cookie("refreshToken",refreshToken,option)
    .json(
     new ApiResponse(
       200,

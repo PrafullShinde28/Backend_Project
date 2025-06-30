@@ -32,7 +32,7 @@ const UserSchema = new Schema({
         required : true,
 
     },
-    converImage : {
+    coverImage : {
         type : String,
     },
     watchHistory : {
@@ -59,7 +59,7 @@ UserSchema.methods.isPasswordCorrect = async function(password){
  return await bcrypt.compare(password,this.password)
 }
 
-UserSchema.method.generateAccessToken = function(){
+UserSchema.methods.generateAccessToken = function(){
    return jwt.sign(
     {
         _id : this._id,
@@ -74,7 +74,7 @@ UserSchema.method.generateAccessToken = function(){
   ) 
 }
 
-UserSchema.method.generateRefreshToken = function(){
+UserSchema.methods.generateRefreshToken = function(){
     return jwt.sign(
     {
         _id : this._id,
