@@ -4,6 +4,8 @@ import {User} from "../models/user.model.js";
 import { uploadOnCloudinary } from "../utils/Cloudinary.js";
 import {ApiResponse} from "../utils/ApiResponse.js";
 import mongoose from "mongoose";
+import jwt from "jsonwebtoken"
+
 
 const generateAccessAndRefreshToken = async (userId) => {
   try {
@@ -190,7 +192,7 @@ const loginoutUser = asyncHandler(async (req,res)=>{
       req.user._id,
        { 
          $set : {
-           refreshToken : undefined
+           refreshToken : 1
          }
       },
       {
@@ -216,7 +218,7 @@ const loginoutUser = asyncHandler(async (req,res)=>{
 })
 
 const refreshAccessToken = asyncHandler (async(req,res)=>{
-  req.cookies.refreshToken || req.body.refreshToken
+ const incomingRefreshToken = req.cookies.refreshToken || req.body.refreshToken
 
   if(!incomingRefreshToken){
     throw new ApiError(404,"unauthorized request") 
@@ -227,13 +229,13 @@ const refreshAccessToken = asyncHandler (async(req,res)=>{
      incomingRefreshToken,
      process.env.REFRESH_TOKEN_SECRET
    ) 
-  const user= User.findById(decodedToken?._id)
+  const user= await User.findById(decodedToken?._id)
  
      if(!user){
        throw new ApiError(401,"Invalid refresh token")
      }
  
-     if(incomingRefreshToken !== user?.refreshAccessToken){
+     if(incomingRefreshToken !== user?.refreshToken){
        throw new ApiError(401,"Refresh token is expired or used")
      }
  
@@ -250,7 +252,7 @@ const refreshAccessToken = asyncHandler (async(req,res)=>{
      .json(
        new ApiResponse(
          200,
-         {accessToken,refreshToken : newRefreshToken}
+         {accessToken,refreshToken }
        )
      )
  } catch (error) {
@@ -261,8 +263,8 @@ const refreshAccessToken = asyncHandler (async(req,res)=>{
 const changeCurrentPassword = asyncHandler(async(req,res)=>{
   const {oldPassword,newPassword} = req.body
 
- const user = await user.findById(req.user?._id)
- const isPasswordCorrect= user.isPasswordCorrect(oldPassword)
+ const user = await User.findById(req.user?._id)
+ const isPasswordCorrect= await user.isPasswordCorrect(oldPassword)
   
  if(!isPasswordCorrect){
   throw new ApiError(400,"Invalid old password")
@@ -460,7 +462,7 @@ const getUserChannelProfile = asyncHandler (async(req,res)=>{
          }
       }
      ])
-     
+
      if(!channel?.length){
   throw new ApiError(404,"channel does not exists")
 }
