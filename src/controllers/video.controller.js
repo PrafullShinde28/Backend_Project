@@ -168,15 +168,98 @@ const publishAVideo = asyncHandler(async (req, res) => {
 });
 
 const getVideoById = asyncHandler(async (req, res) => {
-    const { videoId } = req.params
+   
     //TODO: get video by id
-})
+    // 1=> Extract videoId from URL
+
+     const { videoId } = req.params
+
+     // 2=> check video id is present 
+
+     if(!videoId){
+        throw new ApiError(400,"video id is not present ");
+     }
+ 
+     if (!mongoose.Types.ObjectId.isValid(videoId)) {
+     throw new ApiError(400, "video id is not of type  mongoose");
+    } 
+     // 3=> find the video by id and populate owner info 
+     const video = await Video.findById(videoId).populate("owner","_id username avatar");
+
+
+     // 4=> check if video exists 
+     if(!video){
+        throw new ApiError(404,"video not found");
+     }
+
+     // 5=> increment view count 
+
+     video.view +=1;
+     await video.save();
+
+     // 6=> send response 
+
+     res.status(200).json(
+        new ApiResponse(200,video,"video is fetched successfully")
+     );
+});
 
 const updateVideo = asyncHandler(async (req, res) => {
-    const { videoId } = req.params
-    //TODO: update video details like title, description, thumbnail
-    
-})
+  const { videoId } = req.params;
+
+  // 1. Validate videoId
+  if (!videoId) {
+    throw new ApiError(400, "Video ID is required");
+  }
+  if (!mongoose.Types.ObjectId.isValid(videoId)) {
+    throw new ApiError(400, "Invalid video ID format");
+  }
+
+  // 2. Find video
+  const video = await Video.findById(videoId);
+  if (!video) {
+    throw new ApiError(404, "Video not found");
+  }
+
+  // 3. Check ownership
+  if (video.owner.toString() !== req.user._id.toString()) {
+    throw new ApiError(403, "You are not authorized to update this video");
+  }
+
+  // 4. Update fields
+  const { title, description } = req.body;
+  if (title) video.title = title;
+  if (description) video.description = description;
+
+  // 5. Handle thumbnail upload if provided
+  const newThumbnailFile = req.files?.thumbnail?.[0];
+  if (newThumbnailFile) {
+    const thumbnailPath = newThumbnailFile.path;
+
+    // Upload to Cloudinary
+    const uploadedThumbnail = await uploadOnCloudinary(thumbnailPath, "image");
+    if (!uploadedThumbnail?.secure_url) {
+      throw new ApiError(500, "Thumbnail upload failed");
+    }
+
+    video.thumbnail = uploadedThumbnail.secure_url;
+
+    // Delete local file
+    try {
+      await fs.unlink(thumbnailPath);
+    } catch (err) {
+      console.error("Error deleting local thumbnail:", err.message);
+    }
+  }
+
+  // 6. Save and respond
+  await video.save();
+  res.status(200).json({
+    success: true,
+    message: "Video updated successfully",
+    data: video
+  });
+});
 
 const deleteVideo = asyncHandler(async (req, res) => {
     const { videoId } = req.params
@@ -185,6 +268,7 @@ const deleteVideo = asyncHandler(async (req, res) => {
 
 const togglePublishStatus = asyncHandler(async (req, res) => {
     const { videoId } = req.params
+
 })
 
 export {
