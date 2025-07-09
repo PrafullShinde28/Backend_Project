@@ -261,13 +261,87 @@ const updateVideo = asyncHandler(async (req, res) => {
   });
 });
 
-const deleteVideo = asyncHandler(async (req, res) => {
-    const { videoId } = req.params
-    //TODO: delete video
-})
+
+
+export const deleteVideo = asyncHandler(async (req, res) => {
+  const { videoId } = req.params;
+
+  // 1. Validate videoId
+  if (!videoId) {
+    throw new ApiError(400, "Video ID is required");
+  }
+  if (!mongoose.Types.ObjectId.isValid(videoId)) {
+    throw new ApiError(400, "Invalid video ID format");
+  }
+
+  // 2. Find the video
+  const video = await Video.findById(videoId);
+  if (!video) {
+    throw new ApiError(404, "Video not found");
+  }
+
+  // 3. Check ownership
+  if (video.owner.toString() !== req.user._id.toString()) {
+    throw new ApiError(403, "You are not authorized to delete this video");
+  }
+
+  // 4. Optional: Delete thumbnail from Cloudinary
+  // Only if you have a function to delete by public_id
+  // const publicId = extractPublicIdFromUrl(video.thumbnail); // You need to write this helper
+  // if (publicId) {
+  //   await deleteFromCloudinary(publicId, "image");
+  // }
+
+  // 5. Delete video document
+  await video.deleteOne();
+
+  // 6. Response
+  res.status(200).json({
+    success: true,
+    message: "Video deleted successfully"
+  });
+});
+
 
 const togglePublishStatus = asyncHandler(async (req, res) => {
     const { videoId } = req.params
+    //1=> validate video id
+   if (!videoId) {
+    throw new ApiError(400, "Video ID is required");
+  }
+  if (!mongoose.Types.ObjectId.isValid(videoId)) {
+    throw new ApiError(400, "Invalid video ID format");
+  }
+ 
+  //2=>fetch the video from database using the video id
+  const video = await Video.findById(videoId);
+
+  // 3=>veirfy
+  if (!video) {
+  throw new ApiError(404, "Video not found");
+ }
+
+ //4=> verify ownership
+if (video.owner.toString() !== req.user._id.toString()) {
+    throw new ApiError(403, "You are not authorized to togglePublishStatus this video");
+  }
+
+  //5=> Toggle the publish status
+video.isPublished = !video.isPublished;
+
+// Save the updated video
+await video.save();
+
+// Send success response
+res.status(200).json({
+  success: true,
+  message: `Video is now ${video.isPublished ? "published" : "unpublished"}`,
+  data: {
+    videoId: video._id,
+    isPublished: video.isPublished
+  }
+});
+
 
 })
 
